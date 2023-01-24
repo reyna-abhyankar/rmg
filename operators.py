@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import random
 
 def create_op_pool():
-  pool = {4: [Conv2d(), ReLU(), Flatten()], 2: [Linear(), ReLU()]}
+  pool = {4: [Conv2d(), ReLU(), Flatten()], 2: [Linear(), ReLU(), Unflatten()]}
   return pool
 
 class Operator(ABC):
@@ -51,6 +51,34 @@ class Flatten(Operator):
   
   def construct_op(self):
     return nn.Flatten(self.start_dim, self.end_dim)
+
+class Unflatten(Operator):
+  def __init__(self):
+    super().__init__(0, 0)
+
+  def get_factors(self, n):
+    factors = []
+    factor = 1
+    while factor*factor <= n:
+      if n % factor == 0:
+        factors.append(factor)
+        factors.append(n//factor)
+      factor += 1
+    return factors
+  
+  def compute_dims(self, input_shape):
+    self.dim = 1
+    dim_to_flatten = input_shape[1]
+    factors = self.get_factors(dim_to_flatten)
+    dim_1 = random.choice(factors)
+    factors = self.get_factors(dim_to_flatten//dim_1)
+    dim_2 = random.choice(factors)
+    dim_3 = (dim_to_flatten//dim_1)//dim_2
+    self.unflattened_size = (dim_1, dim_2, dim_3) 
+    return [input_shape[0], dim_1, dim_2, dim_3]   
+
+  def construct_op(self):
+    return nn.Unflatten(self.dim, self.unflattened_size)
 
 class Linear(Operator):
   def __init__(self):
